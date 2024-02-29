@@ -22,13 +22,15 @@ class Hypergraph:
         A list of weights for the hyperedges. If the hypergraph is weighted, this must be provided.
     """
 
-    def __init__(self, edge_list=None, weighted=False, weights=None, metadata=None):
+    def __init__(self, edge_list=None, directed=False, weighted=False, weights=None, metadata=None):
         self._attr = MetaHandler()
+        self._directed=directed
         self._weighted = weighted
         self._edges_by_order = {}
         self._adj = {}
         self._max_order = 0
         self._edge_list = {}
+        
         self.add_edges(edge_list, weights=weights, metadata=metadata)
 
     def get_mapping(self):
@@ -127,8 +129,11 @@ class Hypergraph:
             edges = []
             for idx in self._adj[node]:
                 edge = self._attr.get_obj(idx)
-                if len(edge) == order + 1:
+                if (not self._directed and len(edge) == order + 1) or (self._directed and len(edge[0])+len(edge[1])==order+1):
                     edges.append(edge)
+                
+                    
+                    
             return edges
 
     def add_node(self, node):
@@ -174,6 +179,16 @@ class Hypergraph:
             True if the hypergraph is weighted, False otherwise.
         """
         return self._weighted
+    def is_directed(self):
+        """
+        Check if the hypergraph is directed.
+
+        Returns
+        -------
+        bool
+            True if the hypergraph is directed, False otherwise.
+        """
+        return self._directed
 
     def add_edge(self, edge, weight=None, metadata=None):
         """Add a hyperedge to the hypergraph. If the hyperedge is already in the hypergraph, its weight is updated.
@@ -204,10 +219,25 @@ class Hypergraph:
             raise ValueError(
                 "If the hypergraph is not weighted, no weight must be provided."
             )
-
-        edge = tuple(sorted(edge))
+        
+        if self._directed and (len(edge)!=2 or (not isinstance(edge[0],tuple))):
+            raise ValueError(
+                "If the hypergraph is directed, head and tail must be provided"
+                )
+        if not self._directed and len(edge)==2 and isinstance(edge[0], tuple):
+            raise ValueError(
+                "If the hypergraph is not directed, no head and no tail must be provided"
+                )
+        
+        if self._directed:
+            edge=tuple(tuple(sorted(edge[0])),tuple(sorted(edge[1])))
+            order=len(edge[0])+len(edge[1])-1
+        else:
+            edge = tuple(sorted(edge))
+            order=len(edge)-1 
         idx = self._attr.add_obj(edge, obj_type="edge")
-        order = len(edge) - 1
+
+        
 
         if metadata is not None:
             self._attr.set_attr(edge, metadata)
@@ -227,12 +257,20 @@ class Hypergraph:
                 self._edge_list[edge] = 1
         else:
             self._edge_list[edge] = weight
+            
+        if self._directed:
+            for node in edge[0]:
+                self.add_node(node)
+                self._adj[node].add(idx)
+            for node in edge[1]:
+                self.add_node(node)
+                self._adj[node].add(idx)
+        else:
+            for node in edge:
+                self.add_node(node)
+                self._adj[node].add(idx)
 
-        for node in edge:
-            self.add_node(node)
-            self._adj[node].add(idx)
-
-    def add_edges(self, edge_list, weights=None, metadata=None):
+    def add_edges(self, edge_list,weights=None, metadata=None):
         """Add a list of hyperedges to the hypergraph. If a hyperedge is already in the hypergraph, its weight is updated.
 
         Parameters
@@ -285,9 +323,13 @@ class Hypergraph:
     def _compute_max_order(self):
         self._max_order = 0
         for edge in self._edge_list:
-            order = len(edge) - 1
+            if self._directed:
+                order=len(edge[0])+len(edge[1])-1
+            else:
+                order = len(edge) - 1
             if order > self._max_order:
                 self._max_order = order
+        
 
     def remove_edge(self, edge):
         """Remove an edge from the hypergraph.
@@ -306,10 +348,16 @@ class Hypergraph:
         KeyError
             If the edge is not in the hypergraph.
         """
-        edge = tuple(sorted(edge))
+        if self._directed:
+            edge=tuple(tuple(sorted(edge[0])),tuple(sorted(edge[1])))
+        else:
+            edge = tuple(sorted(edge))
         try:
             del self._edge_list[edge]
-            order = len(edge) - 1
+            if self._directed:
+                order=len(edge[0])+len(edge[1])-1
+            else:
+                order = len(edge) - 1
             idx = self._attr.get_id(edge)
             for node in edge:
                 self._adj[node].remove(idx)
@@ -372,13 +420,23 @@ class Hypergraph:
             to_remove = []
             for edge in self._adj[node]:
                 to_remove.append(self._attr.get_obj(edge))
+
             for edge in to_remove:
-                self.add_edge(
-                    tuple(sorted([n for n in edge if n != node])),
-                    weight=self.get_weight(edge),
-                    metadata=self.get_meta(edge),
-                )
+                if not self._directed:
+                    self.add_edge(
+                        tuple(sorted([n for n in edge if n != node])),
+                        weight=self.get_weight(edge),
+                        metadata=self.get_meta(edge),
+                    )
+                else:
+                    if len(edge[0])!=1 or node in edge[1]:
+                        self.add_edge(
+                            tuple(tuple(sorted([n for n in edge[0] if n!=node])),tuple([n for n in edge[1] if n!=node])),
+                            weight=self.get_weight(edge),
+                            metadata=self.get_meta(edge),
+                            )
                 self.remove_edge(edge)
+                
         del self._adj[node]
         self._attr.remove_obj(node)
 
@@ -426,7 +484,7 @@ class Hypergraph:
         for node in nodes:
             h.set_meta(node, self.get_meta(node))
         for edge in self._edge_list:
-            if set(edge).issubset(set(nodes)):
+            if (not self._directed and set(edge).issubset(set(nodes))) or (self._directed and set(edge[0]).issubset(set(nodes)) and set(edge[1]).issubset(set(nodes))):
                 if self._weighted:
                     h.add_edge(edge, weight=self._edge_list[edge], metadata=self.get_meta(edge))
                 else:
@@ -590,7 +648,11 @@ class Hypergraph:
             Weight of the specified edge.
         """
         try:
-            return self._edge_list[tuple(sorted(edge))]
+            if not self._directed:
+                return self._edge_list[tuple(sorted(edge))]
+            else:
+                return self._edge_list[tuple(tuple(sorted(edge[0])),tuple(sorted(edge[1])))]
+        
         except KeyError:
             raise ValueError("Edge {} not in hypergraph.".format(edge))
 
@@ -615,7 +677,10 @@ class Hypergraph:
             If the edge is not in the hypergraph.
         """
         try:
-            self._edge_list[tuple(sorted(edge))] = weight
+            if not self._directed:
+                self._edge_list[tuple(sorted(edge))] = weight
+            else:
+                self._edge_list[tuple(tuple(sorted(edge[0])),tuple(sorted(edge[1])))] = weight
         except KeyError:
             raise ValueError("Edge {} not in hypergraph.".format(edge))
 
@@ -683,8 +748,40 @@ class Hypergraph:
             List of sizes of the hyperedges in the hypergraph.
 
         """
+        if self._directed:
+            return [len(edge[0])+len(edge[1]) for edge in self._edge_list_keys()]
         return [len(edge) for edge in self._edge_list.keys()]
+    
+    def get_head_sizes(self):
+        """Returns the list of sizes of the hyperedges heads in the hypergraph.
 
+        Returns
+        -------
+        list
+            List of sizes of the hyperedges heads in the hypergraph.
+
+        """
+        if not self._directed:
+            raise ValueError(
+                "Hypergraph should be directed"
+                )
+        return [len(edge[0]) for edge in self._edge_list.keys()]
+    
+    def get_tail_sizes(self):
+        """Returns the list of sizes of the hyperedges tails in the hypergraph.
+
+        Returns
+        -------
+        list
+            List of sizes of the hyperedges tails in the hypergraph.
+
+        """
+        if not self._directed:
+            raise ValueError(
+                "Hypergraph should be directed"
+                )
+        return [len(edge[1]) for edge in self._edge_list.keys()]
+    
     def distribution_sizes(self):
         """
         Returns the distribution of sizes of the hyperedges in the hypergraph.
@@ -707,6 +804,8 @@ class Hypergraph:
             List of orders of the hyperedges in the hypergraph.
 
         """
+        if self._directed:
+            return [len(edge[0])+len(edge[1]) - 1 for edge in self._edge_list.keys()]
         return [len(edge) - 1 for edge in self._edge_list.keys()]
 
     def get_meta(self, obj):
@@ -791,6 +890,8 @@ class Hypergraph:
             True if the edge is in the hypergraph, False otherwise.
 
         """
+        if self._directed:
+            return tuple(tuple(sorted(edge[0])),tuple(sorted(edge[1]))) in self.edge_list
         return tuple(sorted(edge)) in self._edge_list
 
     def check_node(self, node):
