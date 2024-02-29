@@ -79,7 +79,7 @@ def load_hypergraph(file_name: str, file_type: str) -> Hypergraph:
                     H.add_node(obj['name'])
                     H.set_meta(obj['name'], obj)
                 elif obj['type'] == 'edge':
-                    if len(tuple(obj['name']))==2 and isinstance(tuple(obj['name'])[0], int):
+                    if len(tuple(obj['name']))==2 and not isinstance(tuple(obj['name'])[0], int):
                         H._directed=True
                     if H.is_weighted() or 'weight' in obj:
                         H._weighted = True
