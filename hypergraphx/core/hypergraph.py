@@ -30,7 +30,6 @@ class Hypergraph:
         self._adj = {}
         self._max_order = 0
         self._edge_list = {}
-        
         self.add_edges(edge_list, weights=weights, metadata=metadata)
 
     def get_mapping(self):
@@ -179,6 +178,7 @@ class Hypergraph:
             True if the hypergraph is weighted, False otherwise.
         """
         return self._weighted
+    
     def is_directed(self):
         """
         Check if the hypergraph is directed.
