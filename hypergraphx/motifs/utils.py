@@ -1,6 +1,6 @@
 import itertools
 import math
-
+from itertools import combinations, permutations
 
 def _motifs_ho_not_full(edges, N, visited):
     mapping, labeling = generate_motifs(N)
@@ -259,6 +259,116 @@ def _motifs_ho_full(edges, N):
 
     return out, visited
 
+def _directed_motifs_ho_full(edges, N):
+
+    mapping={}
+    labeling={}
+    T = {}
+    for e in edges:
+        T[tuple(tuple(sorted(e[0])),tuple(sorted(e[1])))] = 1
+
+    visited = {}
+    inverse_mapping={}
+    def count_motif(nodes):
+        nodes = tuple(sorted(tuple(nodes)))
+        p_nodes = _all_directed_hyperedges(nodes)
+
+        motif = []
+        for edge in p_nodes:
+            if edge in T:
+                motif.append(edge)
+        
+        m = {}
+        idx = 1
+        for i in nodes:
+            m[i] = idx
+            idx += 1
+
+        labeled_motif = []
+        for e in motif:
+            new_e0 = []
+            for node in e[0]:
+                new_e0.append(m[node])
+            new_e1=[]
+            for node in e[1]:
+                new_e1.append(m[node])
+            
+            new_e = tuple((tuple(sorted(new_e0)),tuple(sorted(new_e1))))
+            labeled_motif.append(new_e)
+        labeled_motif = tuple(sorted(labeled_motif))
+        
+        if labeled_motif in labeling:
+            labeling[labeled_motif] += 1
+        else:
+            labeling[labeled_motif]=1
+        
+        if labeled_motif in inverse_mapping:
+            return
+        
+        vettore = list(range(1,N+1))
+        permutazioni_vettore = permutations(vettore)
+        m={}
+        for permutazione in permutazioni_vettore:
+            i=1
+            for x in permutazione:
+                m[i]=x
+                i+=1
+            
+            new_comb=[]
+            for x in labeled_motif:
+                arco=[]
+                for y in x:
+                    parte_arco=[]
+                    for j in y:
+                        parte_arco.append(m[j])
+                    arco.append(tuple(sorted(parte_arco)))
+                
+                arco=tuple(arco)
+                new_comb.append(arco)
+            new_comb=tuple(sorted(new_comb))
+            if new_comb in mapping:
+                inverse_mapping[labeled_motif]=new_comb
+                mapping[new_comb].add(labeled_motif)
+                return
+        
+        mapping[labeled_motif]=set()
+        mapping[labeled_motif].add(labeled_motif)
+        inverse_mapping[labeled_motif]=labeled_motif
+        
+            
+                
+            
+        
+        
+        
+
+    for e in edges:
+        if len(e[0])+len(e[1]) == N:
+            # print(e)
+            visited[e] = 1
+            nodes = list(e[0])+list(e[1])
+            count_motif(nodes)
+
+    out = []
+
+    for motif in mapping.keys():
+        count = 0
+        for label in mapping[motif]:
+            count += labeling[label]
+
+        out.append((motif, count))
+
+    out = list(sorted(out))
+
+    D = {}
+    for i in range(len(out)):
+        D[i] = out[i][0]
+
+    # with open('motifs_{}.pickle'.format(N), 'wb') as handle:
+    # pickle.dump(D, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return out, visited
+
 
 def diff_sum(observed: list, null_models: list):
     """
@@ -392,6 +502,32 @@ def power_set(A):
 
     return subsets
 
+def _all_directed_hyperedges(nodi):
+    """
+    Compute the power set of a set
+
+    Parameters
+    ----------
+    A : list
+        Set
+
+    Returns
+    -------
+    list
+        Power set of the set
+    """
+    iperarchi = set()
+
+    # Genera iperarchi con nodi di partenza e di arrivo
+    for lunghezza_partenza in range(1, len(nodi)):
+        for nodi_partenza in combinations(nodi, lunghezza_partenza):
+            for lunghezza_arrivo in range(1, len(nodi) - lunghezza_partenza + 1):
+                for nodi_arrivo in combinations(set(nodi) - set(nodi_partenza), lunghezza_arrivo):
+                    iperarco = (tuple(nodi_partenza), tuple(nodi_arrivo))
+                    iperarchi.add(iperarco)
+
+    return iperarchi
+    
 
 def _is_connected(edges, N):
     nodes = set()
@@ -519,3 +655,60 @@ def generate_motifs(N):
             mapping[k].add(tuple(sorted(relabeling_i)))
 
     return mapping, labeling
+
+def generate_directed_motifs(N):
+    if(N==3):
+        triadi=[(tuple((1,)),(2,3)),(tuple((2,)),(1,3)),(tuple((3,)),(1,2)),((1,2),tuple((3,))),((1,3),tuple((2,))),((2,3),tuple((1,)))]
+        triadi=power_set(triadi)
+        vettore = [1, 2, 3]
+        permutazioni_vettore = permutations(vettore)
+        m={}
+        comb={}
+        coppie=[]
+        tot={}
+        for primo in range(1,4):
+            for secondo in range(1,4):
+                if primo!=secondo:
+                    coppie.append(tuple((tuple((primo,)),tuple((secondo,)))))
+        
+        for trio in triadi:
+            if len(trio)==0:
+                continue
+            
+            for ncoppie in range(0,7):
+                for lcoppie in list(combinations(coppie,ncoppie)):
+                    combination=trio
+                    for edge in lcoppie:
+                        combination.append(edge)
+                    presente=False
+                    vettore = [1, 2, 3]
+                    comb[tuple(sorted(combination))]=0
+                    permutazioni_vettore = permutations(vettore)
+                    m={}
+                    for permutazione in permutazioni_vettore:
+                        i=1
+                        for x in permutazione:
+                            m[i]=x
+                            i+=1
+                        
+                        new_comb=[]
+                        for x in combination:
+                            arco=[]
+                            for y in x:
+                                parte_arco=[]
+                                for j in y:
+                                    parte_arco.append(m[j])
+                                arco.append(tuple(sorted(parte_arco)))
+                            
+                            arco=tuple(arco)
+                            new_comb.append(arco)
+                        new_comb=tuple(sorted(new_comb))
+                        if new_comb in tot:
+                            tot[tuple(sorted(new_comb))].add(tuple(sorted(combination)))
+                            presente=True
+                    
+                    if not presente:
+                        tot[tuple(sorted(combination))]=set()
+                        tot[tuple(sorted(combination))].add(tuple(sorted(combination)))
+                        
+    return tot,comb
