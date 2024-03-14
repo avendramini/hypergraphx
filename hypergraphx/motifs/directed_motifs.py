@@ -8,7 +8,6 @@ from hypergraphx.motifs.utils import (
     diff_sum, norm_vector,
 )
 
-
 def compute_directed_motifs(hypergraph: Hypergraph, order=3, runs_config_model=10):
     """
     Compute the number of motifs of a given order in a hypergraph.
@@ -60,32 +59,11 @@ def compute_directed_motifs(hypergraph: Hypergraph, order=3, runs_config_model=1
 
     if order == 3:
         output['observed'] = _motifs_order_3(edges)
+        
     elif order == 4:
         output['observed']# = _motifs_order_4(edges)
     else:
         raise ValueError("Exact computation of motifs of order > 4 is not available.")
 
-    STEPS = hypergraph.num_edges(up_to=order) * 10
-    ROUNDS = runs_config_model
-
-    results = []
-
-    for i in range(ROUNDS):
-        print("Computing config model motifs of order {}. Step: {}".format(order, i+1))
-        e1 = configuration_model(hypergraph, label='stub', n_steps=STEPS)
-        if order == 3:
-            m1 = _motifs_order_3(e1.get_edges())
-        elif order == 4:
-            m1 #= _motifs_order_4(e1.get_edges())
-        results.append(m1)
-
-    output['config_model'] = results
-
-    delta = diff_sum(output['observed'], output['config_model'])
-    norm_delta = norm_vector(delta)
-    output['norm_delta'] = []
-
-    for i in range(len(delta)):
-        output['norm_delta'].append((output['observed'][i][0], norm_delta[i]))
 
     return output

@@ -84,18 +84,18 @@ def load_hypergraph(file_name: str, file_type: str) -> Hypergraph:
                     if H.is_weighted() or 'weight' in obj:
                         H._weighted = True
                     if not H.is_weighted():
-                        if not H.is_directed():
-                            H.add_edge(tuple(tuple(sorted(tuple(obj['name'])[0])),tuple(sorted(tuple(obj['name'])[0]))))
+                        if H.is_directed():
+                            H.add_edge(tuple((tuple(sorted(tuple(obj['name'])[0])),tuple(sorted(tuple(obj['name'])[1])))))
                         else:
                             H.add_edge(tuple(sorted(obj['name'])))
                     else:
                         if H.is_directed():
-                            H.add_edge(tuple(tuple(sorted(tuple(obj['name'])[0])),tuple(sorted(tuple(obj['name'])[0]))),obj['weight'])
+                            H.add_edge(tuple((tuple(sorted(tuple(obj['name'])[0])),tuple(sorted(tuple(obj['name'])[1])))),obj['weight'])
                         else:
                             H.add_edge(tuple(sorted(obj['name'])), obj['weight'])
                     
                     if H.is_directed():
-                        H.set_meta(tuple(tuple(sorted(tuple(obj['name'])[0])),tuple(sorted(tuple(obj['name'])[0]))), obj)
+                        H.set_meta(tuple((tuple(sorted(tuple(obj['name'])[0])),tuple(sorted(tuple(obj['name'])[1])))), obj)
                     else:
                         H.set_meta(tuple(sorted(obj['name'])), obj)
         return H

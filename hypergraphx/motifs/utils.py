@@ -265,17 +265,19 @@ def _directed_motifs_ho_full(edges, N):
     labeling={}
     T = {}
     for e in edges:
-        T[tuple(tuple(sorted(e[0])),tuple(sorted(e[1])))] = 1
+        T[tuple((tuple(sorted(e[0])),tuple(sorted(e[1]))))] = 1
 
     visited = {}
     inverse_mapping={}
     def count_motif(nodes):
         nodes = tuple(sorted(tuple(nodes)))
         p_nodes = _all_directed_hyperedges(nodes)
-
+        
+        
         motif = []
         for edge in p_nodes:
             if edge in T:
+                visited[edge] = 1
                 motif.append(edge)
         
         m = {}
@@ -343,10 +345,9 @@ def _directed_motifs_ho_full(edges, N):
         
 
     for e in edges:
-        if len(e[0])+len(e[1]) == N:
-            # print(e)
-            visited[e] = 1
+        if len(set(e[0]+e[1])) == N and len(e[0])+len(e[1])==N and  not e in visited:
             nodes = list(e[0])+list(e[1])
+            
             count_motif(nodes)
 
     out = []
@@ -523,7 +524,7 @@ def _all_directed_hyperedges(nodi):
         for nodi_partenza in combinations(nodi, lunghezza_partenza):
             for lunghezza_arrivo in range(1, len(nodi) - lunghezza_partenza + 1):
                 for nodi_arrivo in combinations(set(nodi) - set(nodi_partenza), lunghezza_arrivo):
-                    iperarco = (tuple(nodi_partenza), tuple(nodi_arrivo))
+                    iperarco = (tuple(sorted(nodi_partenza)), tuple(sorted(nodi_arrivo)))
                     iperarchi.add(iperarco)
 
     return iperarchi
@@ -613,6 +614,7 @@ def generate_motifs(N):
         List of all possible patterns of non-isomorphic subhypergraphs of size N
     """
     n = N
+    
     assert n >= 2
 
     h = [i for i in range(1, n + 1)]
