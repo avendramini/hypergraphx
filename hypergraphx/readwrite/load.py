@@ -2,8 +2,8 @@ import json
 import os
 import pickle
 
-from hypergraphx import Hypergraph
-
+"""from hypergraphx import Hypergraph"""
+from hypergraph import Hypergraph
 
 def _load_pickle(file_name: str) -> Hypergraph:
     """
